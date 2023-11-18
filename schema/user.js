@@ -1,4 +1,4 @@
-const { database, Sequelize } = require("../connection/postgres");
+// const { database, Sequelize } = require("../connection/postgres");
 
 module.exports = (sequelize, DataTypes) => {
     const User = sequelize.define('User', {

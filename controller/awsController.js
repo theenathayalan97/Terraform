@@ -1,10 +1,13 @@
 
-const db = require('../connection/postgres');
+// const db = require('../connection/postgres');
 const { TerraformGenerator } = require('terraform-generator');
 const fs = require('fs');
-const { exec } = require('child_process');
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
 
-const userSchema = db.User;
+const service = require('../service/awsService')
+
+// const userSchema = db.User;
 const tfg = new TerraformGenerator({
     required_version: '>= 0.12'
 });
@@ -12,6 +15,7 @@ const tfg = new TerraformGenerator({
 //AWS LOGIN
 async function aws_login(req, res) {
     try {
+        let file = 'main.tf'
         const tfConfig = `
         provider "aws" {
             access_key = "${req.body.access_key}"
@@ -19,45 +23,18 @@ async function aws_login(req, res) {
             region     = "${req.body.region}"
           }
         `;
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/main.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-        exec('terraform init', (error, initStdout, initStderr) => {
-            if (error) {
-                console.error('Terraform initialization failed:', initStderr);
-                res.send("Terraform initialization failed");
-            } else {
-                console.log('Terraform initialization succeeded.');
-                exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-                    if (applyError) {
-                        console.error('Terraform apply failed:', applyStderr);
-                        res.send("Terraform apply failed");
-                    } else {
-                        console.log('Terraform apply succeeded.');
-                        console.log(applyStdout);
-                        res.send("Terraform apply succeeded");
-                    }
-                });
-            }
-        });
-
+        let result = await service.fileLogin(file, tfConfig)
+        return res.status(200).json({ message: 'User login successfully', result: result });
     }
     catch (error) {
-        console.log("error is : ", error)
-        res.send("An error occurred (PUBLIC SUBNET ASSOCIATION WITH ROUTE TABLE)");
+        return res.status(400).json({ message: "something went wrong", result: error });
     }
 }
 
 // TO CREATE VPC
 async function aws_vpc(req, res) {
     try {
+        let file = 'vpc.tf'
         const tfConfig = `
   resource "aws_vpc" "${req.body.vpc_name}" {
   cidr_block       = "${req.body.cidr_block}"
@@ -66,35 +43,18 @@ async function aws_vpc(req, res) {
     Name = "${req.body.tag_name}"
   }
 }`;
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/vpc.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-    } catch (error) {
-        console.log("error is:", error);
-        res.send("An error occurred(VPC)");
+        let result = await service.fileCreate(file, tfConfig)
+        return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+    }
+    catch (error) {
+        return res.status(400).json({ message: "something went wrong", result: error });
     }
 }
 
 //TO CREATE PUBLIC SUBNET 
 async function aws_pub_subnet(req, res) {
     try {
+        let file = 'pub_subnet.tf'
         const tfConfig = `
       resource "aws_subnet" "${req.body.sn_name}" {
         vpc_id = "${req.body.vpc_id}"
@@ -106,36 +66,18 @@ async function aws_pub_subnet(req, res) {
         }
       }`;
 
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/pub_subnet.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-    } catch (error) {
-        console.log("error is:", error);
-        res.send("An error occurred (PUBLIC SUBNET)");
-    }
+      let result = await service.fileCreate(file, tfConfig)
+      return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+  }
+  catch (error) {
+      return res.status(400).json({ message: "something went wrong", result: error });
+  }
 }
 
 //TO CREATE PRIVATE SUBNET 
 async function aws_pvt_subnet(req, res) {
     try {
+        let file = 'pri_subnet.tf'
         const tfConfig = `
       resource "aws_subnet" "${req.body.sn_name}" {
         vpc_id = "${req.body.vpc_id}"
@@ -145,38 +87,18 @@ async function aws_pvt_subnet(req, res) {
           Name = "${req.body.tag_name}"
         }
       }`;
-        // map_public_ip_on_launch = true (optional for pvt)
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/pvt_subnet.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-
-    } catch (error) {
-        console.log("error is:", error);
-        res.send("An error occurred (PRIVATE SUBNET)");
-    }
+      let result = await service.fileCreate(file, tfConfig)
+      return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+  }
+  catch (error) {
+      return res.status(400).json({ message: "something went wrong", result: error });
+  }
 }
 
 //TO CREATE INTERNET GATEWAY
 async function internet_gateway(req, res) {
     try {
+        let file = 'inter'
         const tfConfig = `
       resource "aws_internet_gateway" "${req.body.ig_name}" {
         vpc_id = "${req.body.vpc_id}"
@@ -185,36 +107,18 @@ async function internet_gateway(req, res) {
         }
       }`;
 
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/ig.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-    }
-    catch (error) {
-        res.send("An error occurred (INTERNET GATEWAY)");
-    }
+      let result = await service.fileCreate(file, tfConfig)
+      return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+  }
+  catch (error) {
+      return res.status(400).json({ message: "something went wrong", result: error });
+  }
 }
 
 //TO CREATE ROUTE TABLE FOR PUBLIC
 async function route_table_pub(req, res) {
     try {
+        let file = 'routeTablePub.tf'
         const tfConfig = `
         resource "aws_route_table" "${req.body.rt_name}" {
         vpc_id = "${req.body.vpc_id}"
@@ -229,38 +133,19 @@ async function route_table_pub(req, res) {
             }
       }`;
 
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/pub_route_table.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-
-    }
-    catch (error) {
-        console.log("error is : ", error)
-        res.send("An error occurred (ROUTE TABLE PUBLIC)");
-    }
+      let result = await service.fileCreate(file, tfConfig)
+      return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+  }
+  catch (error) {
+      return res.status(400).json({ message: "something went wrong", result: error });
+  }
 }
 
 
 //TO CREATE ROUTE TABLE FOR PRIVATE
 async function route_table_pvt(req, res) {
     try {
+        let file = 'routeTablePvt.tf'
         const tfConfig = `
         resource "aws_route_table" "${req.body.rt_name}" {
         vpc_id = "${req.body.vpc_id}" 
@@ -268,108 +153,53 @@ async function route_table_pvt(req, res) {
           Name = "${req.body.tag_name}"
             }
       }`;
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/pvt_route_table.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-
-    }
-    catch (error) {
-        console.log("error is : ", error)
-        res.send("An error occurred (ROUTE TABLE PRIVATE)");
-    }
+      let result = await service.fileCreate(file, tfConfig)
+      return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+  }
+  catch (error) {
+      return res.status(400).json({ message: "something went wrong", result: error });
+  }
 }
 
 //ASSOCIATE PUBLIC SUBNET WITH ROUTE TABLE
 async function pub_subnet_association(req, res) {
     try {
+        let file = 'pubSubnetAssociation.tf'
         const tfConfig = `
         resource "aws_route_table_association" "${req.body.sn_asso_name}" {
             subnet_id      = "${req.body.subnet_id}"
             route_table_id = "${req.body.route_table_id}"
       }`;
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/pub_subnet_association.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-    }
-    catch (error) {
-        console.log("error is : ", error)
-        res.send("An error occurred (PUBLIC SUBNET ASSOCIATION WITH ROUTE TABLE)");
-    }
+      let result = await service.fileCreate(file, tfConfig)
+      return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+  }
+  catch (error) {
+      return res.status(400).json({ message: "something went wrong", result: error });
+  }
 }
 
 //ASSOCIATE PRIVATE SUBNET WITH ROUTE TABLE
 async function pvt_subnet_association(req, res) {
     try {
+        let file = 'pvtSubnetAssociation.tf'
         const tfConfig = `
         resource "aws_route_table_association" "${req.body.sn_asso_name}" {
             subnet_id      = "${req.body.subnet_id}"
             route_table_id = "${req.body.route_table_id}"
       }`;
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/pvt_subnet_association.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-    }
-    catch (error) {
-        console.log("error is : ", error)
-        res.send("An error occurred (PRIVATE SUBNET ASSOCIATION WITH ROUTE TABLE)");
-    }
+      let result = await service.fileCreate(file, tfConfig)
+      return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+  }
+  catch (error) {
+      return res.status(400).json({ message: "something went wrong", result: error });
+  }
 }
 
 
 //PUBLIC SECURITY GROUP
 async function pub_security_group(req, res) {
     try {
+        let file = 'pubSecurityGroup.tf'
         const ingressRules = req.body.ingress.map((rule, index) => `
             ingress {
                 from_port       = ${rule.from_port}
@@ -403,37 +233,18 @@ async function pub_security_group(req, res) {
             }
         `;
 
-        // The rest of your code remains unchanged
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/pub_security_group.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-
-    } catch (error) {
-        console.log("error is : ", error);
-        res.send("An error occurred (PUBLIC SECURITY GROUP)");
+        let result = await service.fileCreate(file, tfConfig)
+        return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+    }
+    catch (error) {
+        return res.status(400).json({ message: "something went wrong", result: error });
     }
 }
 
 //PRIVATE SECURITY GROUP
 async function pvt_security_group(req, res) {
     try {
+        let file = 'pvtSecurityGroup.tf'
         const ingressRules = req.body.ingress.map((rule, index) => `
             ingress {
                 from_port       = ${rule.from_port}
@@ -467,37 +278,18 @@ async function pvt_security_group(req, res) {
             }
         `;
 
-        // The rest of your code remains unchanged
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/pvt_security_group.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-
-    } catch (error) {
-        console.log("error is : ", error);
-        res.send("An error occurred (PRIVATE SECURITY GROUP)");
+        let result = await service.fileCreate(file, tfConfig)
+        return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+    }
+    catch (error) {
+        return res.status(400).json({ message: "something went wrong", result: error });
     }
 }
 
 //EC2 INSTANCE
 async function ec2_instance(req, res) {
     try {
+        let file = 'EC2Instance.tf'
         const tfConfig = `
         data "aws_ami" "${req.body.os_name}" {
             most_recent = true
@@ -524,35 +316,17 @@ async function ec2_instance(req, res) {
               Name = "${req.body.tag_name}"
             }
       }`;
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/ec2_instance.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-    }
-    catch (error) {
-        console.log("error is : ", error)
-        res.send("An error occurred (EC2 INSTANCE)");
-    }
+      let result = await service.fileCreate(file, tfConfig)
+      return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+  }
+  catch (error) {
+      return res.status(400).json({ message: "something went wrong", result: error });
+  }
 }
 
 async function s3_bucket(req, res) {
     try {
+        let file = 's3Bucket.tf'
         const tfConfig = `
           resource "aws_s3_bucket" "${req.body.name}" {
             bucket = "${req.body.bucket_name}"
@@ -561,74 +335,68 @@ async function s3_bucket(req, res) {
               prevent_destroy = true
             }
           }`;
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/s3_bucket.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-        exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-            if (applyError) {
-                console.error('Terraform apply failed:', applyStderr);
-                res.send("Terraform apply failed");
-            } else {
-                console.log('Terraform apply succeeded.');
-                console.log(applyStdout);
-                res.send("Terraform apply succeeded");
-            }
-        });
-    }
-    catch (error) {
-        console.log("error is : ", error)
-        res.send("An error occurred (S3 BUCKET)");
-    }
+          let result = await service.fileCreate(file, tfConfig)
+          return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+      }
+      catch (error) {
+          return res.status(400).json({ message: "something went wrong", result: error });
+      }
 }
 
 //STORE STATE FILE INTO S3 BUCKET
 async function state_file(req, res) {
     try {
+        let file = 'statefile.tf'
         const tfConfig = `
             resource "aws_s3_object" "file" {
             bucket = "${req.body.bucket_name}"
             key    = "terraform.tfstate"
-            source = "/home/jeya/Music/terraform/terraform.tfstate"
+            source = "/home/dys/project/terraform/terraform_project/terraform.tfstate"
           }`;
-        // Write the Terraform configuration to a file
-        fs.appendFileSync('/home/jeya/Music/terraform/state_file.tf', tfConfig);
-
-        // Define the relative path to the Terraform configuration directory
-        const configPath = '/home/jeya/Music/terraform';
-
-        // Change the current working directory to the Terraform configuration directory
-        process.chdir(configPath);
-
-        // Run Terraform commands
-        // exec('terraform init', (error, initStdout, initStderr) => {
-        //     if (error) {
-        //         console.error('Terraform initialization failed:', initStderr);
-        //         res.send("Terraform initialization failed");
-        //     } else {
-        //         console.log('Terraform initialization succeeded.');
-                exec('terraform apply -auto-approve', (applyError, applyStdout, applyStderr) => {
-                    if (applyError) {
-                        console.error('Terraform apply failed:', applyStderr);
-                        res.send("Terraform apply failed");
-                    } else {
-                        console.log('Terraform apply succeeded.');
-                        console.log(applyStdout);
-                        res.send("Terraform apply succeeded");
-                    }
-                });
-            }
-    //     });
-    // }
-    catch (error) {
-        console.log("error is : ", error)
-        res.send("An error occurred (STATE FILE)");
-    }
+          let result = await service.fileCreate(file, tfConfig)
+          return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+      }
+      catch (error) {
+          return res.status(400).json({ message: "something went wrong", result: error });
+      }
 }
+
+
+async function list_Vpcs(req, res) {
+    try {
+        let file = 'vpcIDList.tf'
+        const tfConfig = `data "aws_vpcs" "foo" {
+          }
+          
+          output "foo" {
+            value = data.aws_vpcs.foo.ids
+          }`;
+          let result = await service.fileCreate(file, tfConfig)
+          return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+      }
+      catch (error) {
+          return res.status(400).json({ message: "something went wrong", result: error });
+      }
+};
+
+async function list_subnet(req, res) {
+    try {
+        let file = 'subnetIDList.tf'
+        const tfConfig = `data "aws_subnet" "foo" {
+          }
+          
+          output "foo" {
+            value = data.aws_subnet.foo.id
+          }`;
+          let result = await service.fileCreate(file, tfConfig)
+          return res.status(200).json({ message: 'AWS VPC Create successfully', result: result });
+      }
+      catch (error) {
+          return res.status(400).json({ message: "something went wrong", result: error });
+      }
+};
+
+
 
 module.exports = {
     aws_login,
@@ -644,5 +412,7 @@ module.exports = {
     pvt_security_group,
     ec2_instance,
     s3_bucket,
-    state_file
+    state_file,
+    list_Vpcs,
+    list_subnet
 };

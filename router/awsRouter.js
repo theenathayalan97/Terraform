@@ -15,4 +15,8 @@ router.post("/ec2_instance",awsController.ec2_instance)
 router.post("/login",awsController.aws_login)
 router.post("/s3_bucket",awsController.s3_bucket)
 router.post("/state_file",awsController.state_file)
+router.get("/vpc_list",awsController.list_Vpcs)
+router.get("/subnet_list", awsController.list_subnet)
+// router.get("/role_list", awsController.list_role)
+
 module.exports=router
